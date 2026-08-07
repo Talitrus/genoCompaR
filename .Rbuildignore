@@ -1,0 +1,7 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^example_data$
+^\.claude$
+^README\.Rmd$
+^\.git$
+^LICENSE\.md$

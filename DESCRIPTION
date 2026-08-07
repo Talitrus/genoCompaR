@@ -1,0 +1,22 @@
+Package: genoCompaR
+Title: Utilities for Comparing Chinook Salmon Genotype/Haplotype Data
+Version: 0.1.0
+Authors@R: person("Bryan", "Nguyen", email = "Bryan.Nguyen@water.ca.gov", role = c("aut", "cre"))
+Description: Reading, comparison, and quality-control utilities for wide-format
+    genotype/haplotype call sheets such as those produced for Chinook salmon
+    GT-seq panels. Provides pairwise sample comparison with match-rate
+    statistics and bi-directional Mendelian incompatibility screening for
+    parentage checks, dataset-wide duplicate ("matchy pair") detection, and
+    missingness summaries.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+Depends: R (>= 4.1)
+Imports:
+    tibble,
+    utils,
+    stats
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
