@@ -4,7 +4,7 @@
 \alias{merge_genotypes}
 \title{Combine two genotype sets on their shared loci}
 \usage{
-merge_genotypes(x, y, id_col = NULL, loci = NULL)
+merge_genotypes(x, y, id_col = NULL, loci = NULL, keep_unmatched_loci = FALSE)
 }
 \arguments{
 \item{x, y}{\code{geno_data} objects, e.g. from \code{\link[=read_genotypes]{read_genotypes()}} or
@@ -13,12 +13,20 @@ merge_genotypes(x, y, id_col = NULL, loci = NULL)
 \item{id_col}{Name for the sample ID column of the result. Defaults to
 \code{x}'s ID column; \code{y}'s ID column is renamed to match.}
 
-\item{loci}{Character vector of loci to keep. Defaults to the
-intersection of \code{get_loci(x)} and \code{get_loci(y)}.}
+\item{loci}{Character vector of loci to keep. Defaults to the shared loci,
+or every locus in either input when \code{keep_unmatched_loci = TRUE}.}
+
+\item{keep_unmatched_loci}{Keep loci present in only one input as extra
+columns, NA-filled for the rows of the input that lacks them, instead of
+restricting to the shared panel. \code{FALSE} by default: for the duo/trio
+comparisons this function normally feeds, a locus one side never
+assayed can never be compared across the merge, so keeping it just
+inflates \code{n_loci_total} and dilutes per-sample call rates computed over
+the merged table.}
 }
 \value{
 A \code{geno_data} object containing every row of \code{x} then every row
-of \code{y}, over the shared loci. The group column is retained only when
+of \code{y}, over the requested loci. The group column is retained only when
 both inputs have one.
 }
 \description{
@@ -34,6 +42,11 @@ the package assumes one row per sample; an ID appearing in both inputs is
 an error. When only a few individuals are of interest, subset before
 merging - both to keep the result small and to sidestep duplicate IDs
 elsewhere in a large file.
+
+When \code{loci} is left at its default and the two inputs' panels differ, a
+message reports how many loci are unique to each side and whether they
+were kept or dropped - the two panels shown in the examples below are
+typical, so this fires often and is meant to be seen once, not hunted for.
 }
 \examples{
 p_path <- system.file(

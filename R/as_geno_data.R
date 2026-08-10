@@ -99,11 +99,18 @@ as_geno_data <- function(df,
 #'   [as_geno_data()].
 #' @param id_col Name for the sample ID column of the result. Defaults to
 #'   `x`'s ID column; `y`'s ID column is renamed to match.
-#' @param loci Character vector of loci to keep. Defaults to the
-#'   intersection of `get_loci(x)` and `get_loci(y)`.
+#' @param loci Character vector of loci to keep. Defaults to the shared loci,
+#'   or every locus in either input when `keep_unmatched_loci = TRUE`.
+#' @param keep_unmatched_loci Keep loci present in only one input as extra
+#'   columns, NA-filled for the rows of the input that lacks them, instead of
+#'   restricting to the shared panel. `FALSE` by default: for the duo/trio
+#'   comparisons this function normally feeds, a locus one side never
+#'   assayed can never be compared across the merge, so keeping it just
+#'   inflates `n_loci_total` and dilutes per-sample call rates computed over
+#'   the merged table.
 #'
 #' @return A `geno_data` object containing every row of `x` then every row
-#'   of `y`, over the shared loci. The group column is retained only when
+#'   of `y`, over the requested loci. The group column is retained only when
 #'   both inputs have one.
 #'
 #' @details
@@ -112,6 +119,11 @@ as_geno_data <- function(df,
 #' an error. When only a few individuals are of interest, subset before
 #' merging - both to keep the result small and to sidestep duplicate IDs
 #' elsewhere in a large file.
+#'
+#' When `loci` is left at its default and the two inputs' panels differ, a
+#' message reports how many loci are unique to each side and whether they
+#' were kept or dropped - the two panels shown in the examples below are
+#' typical, so this fires often and is meant to be seen once, not hunted for.
 #'
 #' @seealso [read_genotypes()], [as_geno_data()], [check_trio()].
 #'
@@ -141,7 +153,8 @@ as_geno_data <- function(df,
 #' check_trio(trio, "C260383CVP", "C240716FRH", "C240722FRH")
 #'
 #' @export
-merge_genotypes <- function(x, y, id_col = NULL, loci = NULL) {
+merge_genotypes <- function(x, y, id_col = NULL, loci = NULL,
+                             keep_unmatched_loci = FALSE) {
   if (!inherits(x, "geno_data") || !inherits(y, "geno_data")) {
     stop(
       "`x` and `y` must both be geno_data objects (see read_genotypes() ",
@@ -150,13 +163,34 @@ merge_genotypes <- function(x, y, id_col = NULL, loci = NULL) {
     )
   }
 
-  if (is.null(loci)) {
-    loci <- intersect(get_loci(x), get_loci(y))
+  shared <- intersect(get_loci(x), get_loci(y))
+  candidate_pool <- if (keep_unmatched_loci) {
+    union(get_loci(x), get_loci(y))
   } else {
-    unknown <- setdiff(loci, intersect(get_loci(x), get_loci(y)))
+    shared
+  }
+
+  if (is.null(loci)) {
+    loci <- candidate_pool
+    x_only <- setdiff(get_loci(x), get_loci(y))
+    y_only <- setdiff(get_loci(y), get_loci(x))
+    if (length(x_only) > 0 || length(y_only) > 0) {
+      disposition <- if (keep_unmatched_loci) {
+        "kept, NA-filled for the input that lacks them (keep_unmatched_loci = TRUE)"
+      } else {
+        "dropped as not shared by both inputs (keep_unmatched_loci = TRUE keeps them)"
+      }
+      message(sprintf(
+        "merge_genotypes(): %d locus/loci only in `x` and %d only in `y` %s.",
+        length(x_only), length(y_only), disposition
+      ))
+    }
+  } else {
+    unknown <- setdiff(loci, candidate_pool)
     if (length(unknown) > 0) {
       stop(
-        "Locus/loci not present in both inputs: ",
+        "Locus/loci not present in ",
+        if (keep_unmatched_loci) "either input: " else "both inputs: ",
         paste(utils::head(unknown, 5), collapse = ", "),
         if (length(unknown) > 5) ", ..." else "",
         call. = FALSE
@@ -175,7 +209,11 @@ merge_genotypes <- function(x, y, id_col = NULL, loci = NULL) {
   keep_group <- !is.null(x_gc) && !is.null(y_gc)
 
   take <- function(d, gc) {
-    out <- as.data.frame(d)[, c(.id_col(d), if (keep_group) gc, locus_cols), drop = FALSE]
+    df <- as.data.frame(d)
+    absent <- setdiff(locus_cols, colnames(df))
+    if (length(absent) > 0) df[absent] <- NA_character_
+
+    out <- df[, c(.id_col(d), if (keep_group) gc, locus_cols), drop = FALSE]
     names(out)[1] <- id_col
     if (keep_group) names(out)[2] <- "group"
     out

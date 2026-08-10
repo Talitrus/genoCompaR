@@ -32,6 +32,58 @@ test_that("merge_genotypes combines two sets on shared loci", {
   expect_setequal(m$indiv.ID, synthetic_geno_df()$indiv.ID)
 })
 
+test_that("merge_genotypes reports how many loci are unique to each side", {
+  a <- as_geno_data(synthetic_geno_df()[1:3, ], loci = paste0("locus", 1:5))
+  b <- as_geno_data(synthetic_geno_df()[4:6, ], loci = paste0("locus", 1:3))
+
+  expect_message(merge_genotypes(a, b),
+                 "2 locus/loci only in `x` and 0 only in `y`.*dropped")
+  expect_message(merge_genotypes(a, b, keep_unmatched_loci = TRUE),
+                 "2 locus/loci only in `x` and 0 only in `y`.*kept, NA-filled")
+
+  # A clean intersection (no unique loci on either side) has nothing to
+  # report.
+  c <- as_geno_data(synthetic_geno_df()[4:6, ], loci = paste0("locus", 1:5))
+  expect_silent(merge_genotypes(a, c))
+})
+
+test_that("keep_unmatched_loci keeps the union, NA-filled where absent", {
+  a <- as_geno_data(synthetic_geno_df()[1:3, ], loci = paste0("locus", 1:5))
+  b <- as_geno_data(synthetic_geno_df()[4:6, ], loci = paste0("locus", 1:3))
+
+  m <- suppressMessages(merge_genotypes(a, b, keep_unmatched_loci = TRUE))
+  expect_equal(get_loci(m), paste0("locus", 1:5))
+  expect_equal(nrow(m), 6)
+
+  b_rows <- m[m$indiv.ID %in% c("unrelated1", "dup_a", "dup_b"), ]
+  expect_true(all(is.na(b_rows$locus4.1) & is.na(b_rows$locus4.2)))
+  expect_true(all(is.na(b_rows$locus5.1) & is.na(b_rows$locus5.2)))
+
+  a_rows <- m[m$indiv.ID %in% c("mom", "dad", "kid"), ]
+  expect_false(any(is.na(a_rows$locus3.1)))  # a shared locus is unaffected
+
+  # A locus unique to one side is simply excluded from any comparison that
+  # crosses the merge - not an error, not a false incompatibility.
+  cmp <- compare_genotypes(m, "kid", "unrelated1", output = "tibble")
+  expect_equal(cmp$n_loci_total[[1]], 5L)
+  expect_equal(cmp$n_loci_compared[[1]], 3L)
+})
+
+test_that("keep_unmatched_loci widens what an explicit loci argument accepts", {
+  a <- as_geno_data(synthetic_geno_df()[1:3, ], loci = paste0("locus", 1:5))
+  b <- as_geno_data(synthetic_geno_df()[4:6, ], loci = paste0("locus", 1:3))
+
+  expect_error(merge_genotypes(a, b, loci = "locus4"),
+               "not present in both inputs")
+
+  m <- merge_genotypes(a, b, loci = "locus4", keep_unmatched_loci = TRUE)
+  expect_equal(get_loci(m), "locus4")
+  expect_error(
+    merge_genotypes(a, b, loci = "nosuchlocus", keep_unmatched_loci = TRUE),
+    "not present in either input"
+  )
+})
+
 test_that("merge_genotypes rejects overlapping IDs and disjoint panels", {
   a <- as_geno_data(synthetic_geno_df()[1:3, ])
   expect_error(merge_genotypes(a, a), "Duplicate sample IDs")
