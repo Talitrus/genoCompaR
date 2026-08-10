@@ -168,6 +168,32 @@ samples:
 geno <- as_geno_data(out, id_col = "SAMPLE_ID", group_col = NULL)
 ```
 
+### `gen_haps()` — filter and pivot raw haplotype calls into genotypes
+
+Ports the `chinook_gt` Nextflow pipeline's `GEN_HAPS` process (depth/allele-balance
+filtering, N/X and multi-allele dropping, duplicate-run resolution, homozygote
+fill-in) into dependency-free R — no `microhaplotopia` or tidyverse required, and
+the same three adjustable thresholds and defaults as the pipeline.
+
+```r
+out <- gen_haps(
+  "AFTC_ILC_P134_full_observed_unfiltered_haplotype.csv",  # raw long-format calls
+  haplotype_depth = 4,    # matches the pipeline's defaults
+  total_depth = 8,
+  allele_balance = 0.35
+)
+#> <geno_haps> 288 samples x 193 loci | 2 anomalies
+
+gen_haps_report(out)$missing_samples   # samples with no surviving calls
+gen_haps_report(out)$xtraalleles       # loci dropped for >2 surviving alleles
+
+geno <- as_geno_data(out)   # defaults already match; no id_col/group_col needed
+```
+
+`group` is always `"ND"` on output — that's the pipeline's own behavior, not a
+placeholder this function introduces — and an N/X call drops the whole
+`(sample, locus)` pair, not just the offending allele. See `?gen_haps` for both.
+
 ## Function reference
 
 | Function                     | Purpose                                                            |
@@ -185,6 +211,8 @@ geno <- as_geno_data(out, id_col = "SAMPLE_ID", group_col = NULL)
 | `paralog_scan()`              | Heterozygote-excess scan for collapsed paralogous loci             |
 | `conform_genotypes()`         | Convert a CFS export into the DWR haplotype layout, VCF-validated  |
 | `conform_report()`            | QC report from a `conform_genotypes()` run                         |
+| `gen_haps()`                  | Filter/pivot raw haplotype calls into wide genotype layout (GEN_HAPS port) |
+| `gen_haps_report()`           | QC report from a `gen_haps()` run                                   |
 | `get_loci()`                  | Locus names carried by a `geno_data` object                        |
 
 ## Example data
@@ -209,7 +237,8 @@ Also shipped:
 
 - `inst/extdata/reference_VCFs/` — the two panel VCFs `conform_genotypes()`
   validates alleles against (203 loci between them).
-- `inst/extdata/synthetic/` — five small invented files, ~50 kB, that the
-  whole conversion test suite runs on; see that directory's `README.md` for
-  what each fault in them is there to test, and
-  `data-raw/make_synthetic_fixtures.R` to regenerate them.
+- `inst/extdata/synthetic/` — small invented files, no real fish: five
+  (~50 kB) that the conversion test suite runs on, plus one for `gen_haps()`.
+  See that directory's `README.md` for what each fault in them is there to
+  test, and `data-raw/make_synthetic_fixtures.R` /
+  `data-raw/make_gen_haps_fixture.R` to regenerate them.
