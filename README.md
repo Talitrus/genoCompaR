@@ -7,7 +7,7 @@ sample and two allele columns per locus (`<locus>.1`, `<locus>.2`).
 ## Install
 
 ```r
-remotes::install("Talitrus/genoCompaR")
+remotes::install_github("Talitrus/genoCompaR")
 ```
 
 ## Quick start
@@ -19,6 +19,27 @@ path <- system.file("extdata", "AFTC_ILC_P134_full_filtered_haplotypes.csv", pac
 geno <- read_genotypes(path)
 geno
 #> <geno_data> 288 samples x 193 loci
+```
+
+### The `geno_data` object
+
+`read_genotypes()` and `as_geno_data()` both return a `geno_data` object: an
+ordinary tibble (subset, filter, and pipe it like any other) that also
+carries three attributes the rest of the package reads instead of
+hardcoding column names:
+
+- the sample ID column (`id_col`, default `"indiv.ID"`)
+- an optional grouping column (`group_col`, e.g. population/run/study group
+  — default `"group"`; pass `group_col = NULL` if there is no such column)
+- the locus panel (`get_loci(geno)`, without the `.1`/`.2` suffixes)
+
+Anything that isn't a fresh CSV read — a subset of rows, a hand-picked
+locus panel, a table assembled from another source — goes through
+`as_geno_data()` to (re)attach these before the comparison functions will
+accept it:
+
+```r
+small <- as_geno_data(as.data.frame(geno)[1:3, ], loci = get_loci(geno)[1:20])
 ```
 
 ## Functions
