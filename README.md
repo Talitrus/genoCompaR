@@ -7,7 +7,7 @@ sample and two allele columns per locus (`<locus>.1`, `<locus>.2`).
 ## Install
 
 ```r
-devtools::install(".")
+remotes::install("Talitrus/genoCompaR")
 ```
 
 ## Quick start
