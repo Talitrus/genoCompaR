@@ -111,6 +111,25 @@ print.conform_report <- function(x, ...) {
 }
 
 #' @export
+print.geno_haps <- function(x, ...) {
+  report <- attr(x, "gen_haps_report")
+  cat(sprintf(
+    "<geno_haps> %d samples x %d loci | %d anomal%s\n",
+    nrow(x), (ncol(x) - 2L) %/% 2L, length(report$anomalies),
+    if (length(report$anomalies) == 1) "y" else "ies"
+  ))
+  cat("Use gen_haps_report() for the QC report, as_geno_data() to compare samples.\n")
+  NextMethod()
+}
+
+#' @export
+print.gen_haps_report <- function(x, ...) {
+  cat(x$text, sep = "\n")
+  cat("\n")
+  invisible(x)
+}
+
+#' @export
 print.geno_trio <- function(x, ...) {
   # see print.geno_comparison() - this report describes a single trio
   if (nrow(x) != 1) {
