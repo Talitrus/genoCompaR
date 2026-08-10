@@ -555,7 +555,7 @@ conform_genotypes <- function(cfs_file,
   if (resolve_duplicate_ids && any(duplicated(conformed_df$SAMPLE_ID))) {
     emit("--- Step 7b: Resolving duplicate SAMPLE_IDs ---")
 
-    called_counts <- rowSums(!is.na(conformed_df[, c(marker_cols_dwr, extra_cols), drop = FALSE]))
+    called_counts <- rowSums(.is_called(conformed_df[, c(marker_cols_dwr, extra_cols), drop = FALSE]))
     dup_ids <- unique(conformed_df$SAMPLE_ID[duplicated(conformed_df$SAMPLE_ID)])
     emit("[INFO] %d SAMPLE_IDs appear more than once (%d rows involved).",
          length(dup_ids), sum(conformed_df$SAMPLE_ID %in% dup_ids))
@@ -588,7 +588,7 @@ conform_genotypes <- function(cfs_file,
         for (o in nonempty_others) {
           a <- unlist(conformed_df[winner, c(marker_cols_dwr, extra_cols)])
           b <- unlist(conformed_df[o, c(marker_cols_dwr, extra_cols)])
-          both <- !is.na(a) & !is.na(b)
+          both <- .is_called(a) & .is_called(b)
           shared <- shared + sum(both)
           conflicts <- conflicts + sum(both & a != b)
         }
@@ -646,7 +646,7 @@ conform_genotypes <- function(cfs_file,
          length(missing_in_cfs))
   }
 
-  call_rates <- rowMeans(!is.na(conformed_df[, marker_cols_dwr, drop = FALSE]))
+  call_rates <- rowMeans(.is_called(conformed_df[, marker_cols_dwr, drop = FALSE]))
   names(call_rates) <- conformed_df$SAMPLE_ID
   emit("[INFO] Average sample call rate: %.2f%%", mean(call_rates) * 100)
   if (sum(call_rates < low_call_rate) > 0) {

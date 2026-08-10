@@ -27,6 +27,35 @@ test_that("resolution keeps the row carrying the most calls", {
   }
 })
 
+test_that("a genuinely blank cell does not outweigh real calls when picking a winner", {
+  # Uncalled genotypes are spelled three ways in real exports (real NA, the
+  # literal text "NA", and a blank field) and .is_called() exists precisely to
+  # treat them alike. Build a pair where the "fuller-looking" row is mostly
+  # blank fields and the truly fuller row spells its blanks as "NA" text, and
+  # confirm the row with more real calls wins regardless of spelling.
+  cfs <- syn_cfs()
+  raw_markers <- setdiff(colnames(cfs), SYN_META)
+  template <- cfs[cfs[[SYN_ID_COL]] == "SYN0002", ]  # a fully-called row
+
+  row_blank <- template
+  row_full <- template
+  row_blank[[SYN_ID_COL]] <- "SYN_DUP_BLANKBUG"
+  row_full[[SYN_ID_COL]] <- "SYN_DUP_BLANKBUG"
+
+  # 2 real calls, the rest genuinely blank fields.
+  row_blank[, setdiff(raw_markers, raw_markers[1:2])] <- ""
+  # 30 real calls, the rest spelled with the literal "NA" text.
+  row_full[, setdiff(raw_markers, raw_markers[1:30])] <- "NA"
+
+  cfs2 <- rbind(cfs, row_blank, row_full)
+  out <- conform_genotypes(temp_csv(cfs2), SYN_DWR, SYN_VCFS, verbose = FALSE)
+
+  kept <- out[out$SAMPLE_ID == "SYN_DUP_BLANKBUG", , drop = FALSE]
+  expect_equal(nrow(kept), 1L)
+  markers <- setdiff(colnames(kept), "SAMPLE_ID")
+  expect_gt(sum(.is_called(unlist(kept[, markers]))), 20)  # row_full won
+})
+
 test_that("an ID whose every row is empty is dropped entirely", {
   out <- syn_run()
   expect_false("SYN_DUP_EMPTY" %in% out$SAMPLE_ID)
