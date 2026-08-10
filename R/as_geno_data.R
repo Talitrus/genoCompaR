@@ -43,7 +43,11 @@ as_geno_data <- function(df,
     stop("`df` must be a data frame or tibble.", call. = FALSE)
   }
   if (!id_col %in% names(df)) {
-    stop("id_col '", id_col, "' not found in `df`.", call. = FALSE)
+    stop(
+      "id_col '", id_col, "' not found in `df`. Is your ID column named '",
+      names(df)[1], "'?",
+      call. = FALSE
+    )
   }
   ids <- as.character(df[[id_col]])
   if (anyDuplicated(ids)) {

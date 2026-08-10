@@ -45,7 +45,11 @@ read_genotypes <- function(file,
   )
 
   if (!id_col %in% names(raw)) {
-    stop("id_col '", id_col, "' not found in ", file, call. = FALSE)
+    stop(
+      "id_col '", id_col, "' not found in ", file,
+      ". Is your ID column named '", names(raw)[1], "'?",
+      call. = FALSE
+    )
   }
   if (anyDuplicated(raw[[id_col]])) {
     dupes <- unique(raw[[id_col]][duplicated(raw[[id_col]])])
