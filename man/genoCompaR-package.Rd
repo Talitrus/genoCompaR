@@ -15,11 +15,11 @@ Mendelian incompatibility screen for parentage checks), and
 duplicate genotypes.
 }
 \author{
-\strong{Maintainer}: Bryann Nguyen \email{nguyenbryann@gmail.com}
+\strong{Maintainer}: Bryan Nguyen \email{Bryan.Nguyen@water.ca.gov}
 
 Authors:
 \itemize{
-  \item Bryann Nguyen \email{nguyenbryann@gmail.com}
+  \item Bryan Nguyen \email{Bryan.Nguyen@water.ca.gov}
 }
 
 }

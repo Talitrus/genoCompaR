@@ -75,6 +75,42 @@ print.geno_duplicates <- function(x, ...) {
 }
 
 #' @export
+print.geno_paralog_scan <- function(x, ...) {
+  cat(sprintf(
+    "<geno_paralog_scan> %d of %d loci scanned, %d flagged (excess > %.2f, min_n = %d)\n",
+    nrow(x), attr(x, "n_loci"), sum(x$flagged), attr(x, "threshold"),
+    as.integer(attr(x, "min_n"))
+  ))
+  skipped <- attr(x, "n_loci") - nrow(x)
+  if (skipped > 0) {
+    cat(sprintf(
+      "%d locus/loci skipped: fewer than %d complete genotypes.\n",
+      skipped, as.integer(attr(x, "min_n"))
+    ))
+  }
+  NextMethod()
+}
+
+#' @export
+print.geno_conformed <- function(x, ...) {
+  report <- attr(x, "conform_report")
+  cat(sprintf(
+    "<geno_conformed> %d samples x %d columns | %d anomal%s\n",
+    nrow(x), ncol(x), length(report$anomalies),
+    if (length(report$anomalies) == 1) "y" else "ies"
+  ))
+  cat("Use conform_report() for the QC report, as_geno_data() to compare samples.\n")
+  NextMethod()
+}
+
+#' @export
+print.conform_report <- function(x, ...) {
+  cat(x$text, sep = "\n")
+  cat("\n")
+  invisible(x)
+}
+
+#' @export
 print.geno_trio <- function(x, ...) {
   # see print.geno_comparison() - this report describes a single trio
   if (nrow(x) != 1) {

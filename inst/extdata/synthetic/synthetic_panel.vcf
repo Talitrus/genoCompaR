@@ -1,0 +1,14 @@
+##fileformat=VCFv4.2
+##source=synthetic fixture for CFS_to_DWR_haplotype; not real data
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total alleles">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	chinook2911
+NC_037099.1:62937268-62937373	62	.	A	G	4211.7	.	AC=1;AN=2;DP=31	GT:DP	0/1:31
+NC_037099.1:62937268-62937373	88	.	C	T	4211.7	.	AC=1;AN=2;DP=31	GT:DP	0/1:31
+NC_037104.1:55923357-55923657	101	.	A	C	4211.7	.	AC=1;AN=2;DP=31	GT:DP	0/1:31
+NC_037104.1:55923357-55923657	151	.	G	T	4211.7	.	AC=1;AN=2;DP=31	GT:DP	0/1:31
+NC_037104.1:55923357-55923657	204	.	C	A	4211.7	.	AC=1;AN=2;DP=31	GT:DP	0/1:31
+NC_037130.1:1062935-1063235	118	.	T	A	4211.7	.	AC=1;AN=2;DP=31	GT:DP	0/1:31
+NC_037130.1:1062935-1063235	151	.	G	A	4211.7	.	AC=1;AN=2;DP=31	GT:DP	0/1:31

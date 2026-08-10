@@ -1,6 +1,36 @@
 # Internal helpers shared across genoCompaR functions.
 # Not exported except where noted.
 
+# TRUE where a genotype call is actually present. Call sheets have used all
+# three spellings of "not called" - a real NA, an empty cell, and the literal
+# string "NA" - so anything reading a file with colClasses = "character" (which
+# conform_genotypes() must, to keep numeric-looking haplotypes from becoming
+# integers) has to treat them alike.
+.is_called <- function(x) !is.na(x) & x != "" & x != "NA"
+
+# Read a call sheet with every column left as character and no NA conversion.
+# conform_genotypes() needs both: colClasses keeps all-numeric marker columns
+# from becoming integers (nchar() would then report digit counts instead of
+# haplotype widths), and leaving "" / "NA" untouched keeps the raw file's own
+# spelling of "uncalled" visible to .is_called().
+.read_chr <- function(path, ...) {
+  utils::read.csv(path, check.names = FALSE, stringsAsFactors = FALSE,
+                  colClasses = "character", ...)
+}
+
+# Split an arbitrary wide genotype table's column names into locus base names
+# and everything else. Unlike .validate_locus_columns() this is tolerant: it
+# takes whatever pairs up and treats the rest as metadata, which is what
+# paralog_scan() needs on a data frame that has no geno_data attributes and
+# whose ID/group columns are not known in advance.
+.split_genotype_columns <- function(cols) {
+  firsts <- cols[grepl("\\.1$", cols)]
+  seconds <- cols[grepl("\\.2$", cols)]
+  loci <- intersect(sub("\\.1$", "", firsts), sub("\\.2$", "", seconds))
+  genotype_cols <- c(paste0(loci, ".1"), paste0(loci, ".2"))
+  list(loci = sort(loci), meta = setdiff(cols, genotype_cols))
+}
+
 .validate_locus_columns <- function(cols) {
   if (length(cols) == 0 || length(cols) %% 2 != 0) {
     stop(
