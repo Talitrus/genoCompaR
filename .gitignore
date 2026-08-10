@@ -5,3 +5,11 @@
 *.Rproj
 /doc/
 /Meta/
+
+# R CMD build / check artifacts, which land at the package root
+/*.tar.gz
+*.Rcheck/
+
+# Alternate data streams that the Windows DLP agent leaves beside files on
+# the mounted drive; they surface as separate paths under WSL.
+*:sec.endpointdlp

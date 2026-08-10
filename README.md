@@ -94,6 +94,59 @@ locus_missingness(geno)   # one row per locus
 sample_missingness(geno)  # one row per sample
 ```
 
+### `paralog_scan()` — find collapsed paralogous loci
+
+Flags loci called heterozygous more often than a certain rate (default: 0.25) over what is expected in Hardy-Weinberg equilibrium.
+
+```r
+ref <- read_genotypes(p_path, id_col = "SAMPLE_ID", group_col = NULL)
+paralog_scan(ref)
+#> <geno_paralog_scan> 193 of 221 loci scanned, 2 flagged (excess > 0.25, min_n = 50)
+#> 28 locus/loci skipped: fewer than 50 complete genotypes.
+#>   locus                             n alleles obs_het exp_het excess flagged
+#>   NC_037104.1:56552952-56553042  1126       2   0.999   0.500  0.499 TRUE
+#>   NC_037130.1:1062935-1063235    1062       2   0.930   0.498  0.432 TRUE
+#>   Ots_111681-657                 3112       2   0.528   0.497  0.032 FALSE
+```
+
+### `conform_genotypes()` — convert a CFS export into the DWR layout
+
+Reads a CFS-format genotype export, harmonizes its marker names, validates
+every allele against reference VCFs, resolves repeated sample IDs, and returns
+a table matching a DWR reference file's exact column layout — the format
+CKMRsim and CKMR-shiny expect.
+
+```r
+out <- conform_genotypes(
+  "WY26_salvage_combined_genotypes.csv",       # CFS export
+  "FRH2025_broodstock_genos.csv",              # DWR reference (column template)
+  system.file("extdata", "reference_VCFs",
+              c("full.vcf", "Chinook_FullPanel_VGLL3Six6LFARWRAP.vcf"),
+              package = "genoCompaR")
+)
+#> ... offset report, duplicate-ID report, call rates, coverage, anomalies
+
+conform_report(out)$anomalies   # what needs a human decision
+conform_report(out)$offsets     # per-locus shift summary
+conform_report(out)$het_excess  # the paralog_scan() result
+
+write.csv(out, "conformed.csv", row.names = FALSE, na = "")
+```
+
+Two behaviors are **off by default** because they discard or rewrite data:
+`repair_offsets`, which moves genotypes the scan diagnosed as shifted back to
+the loci they belong to, and `null_invalid_alleles`, which blanks alleles the
+VCFs say are impossible. Run once with both off, read the report, and turn one
+on only once you accept its diagnosis.
+
+The result carries duplicate sample IDs when `resolve_duplicate_ids = FALSE`,
+so it is a plain table rather than a `geno_data`. Convert it to compare
+samples:
+
+```r
+geno <- as_geno_data(out, id_col = "SAMPLE_ID", group_col = NULL)
+```
+
 ## Function reference
 
 | Function                     | Purpose                                                            |
@@ -108,6 +161,9 @@ sample_missingness(geno)  # one row per sample
 | `genotype_match_matrix()`     | Full sample x sample match-rate matrix, for clustering/heatmaps    |
 | `locus_missingness()`         | Per-locus missing-call summary                                     |
 | `sample_missingness()`        | Per-sample missing-call summary                                    |
+| `paralog_scan()`              | Heterozygote-excess scan for collapsed paralogous loci             |
+| `conform_genotypes()`         | Convert a CFS export into the DWR haplotype layout, VCF-validated  |
+| `conform_report()`            | QC report from a `conform_genotypes()` run                         |
 | `get_loci()`                  | Locus names carried by a `geno_data` object                        |
 
 ## Example data
@@ -125,4 +181,14 @@ Real Chinook haplotype call sheets in `inst/extdata/`:
 
 The Parents/Unknowns files contain one known true trio (see
 `tests/testthat/test-known-trio.R`): offspring `C260383CVP` (Unknowns) has
-parents `C240716FRH` and `C240722FRH` (Parents).
+parents `C240716FRH` and `C240722FRH` (Parents). The Unknowns file is itself
+the output of `conform_genotypes()`.
+
+Also shipped:
+
+- `inst/extdata/reference_VCFs/` — the two panel VCFs `conform_genotypes()`
+  validates alleles against (203 loci between them).
+- `inst/extdata/synthetic/` — five small invented files, ~50 kB, that the
+  whole conversion test suite runs on; see that directory's `README.md` for
+  what each fault in them is there to test, and
+  `data-raw/make_synthetic_fixtures.R` to regenerate them.
