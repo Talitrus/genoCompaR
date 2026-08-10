@@ -13,6 +13,7 @@ conform_genotypes(
   repair_offsets = FALSE,
   null_invalid_alleles = FALSE,
   resolve_duplicate_ids = TRUE,
+  keep_unmatched_markers = TRUE,
   locus_shifts = c(-1L, 1L, -2L, 2L),
   min_offset_run = 3L,
   low_call_rate = 0.5,
@@ -55,6 +56,10 @@ absent from the reference panel looks the same as an artefact.}
 one row, keeping whichever row carries the most called genotypes. IDs
 whose every row is empty are dropped. \code{TRUE} by default.}
 
+\item{keep_unmatched_markers}{Append CFS markers absent from the DWR panel
+as extra output columns instead of dropping them. \code{TRUE} by default; they
+still receive the same VCF-validated QC as matched markers.}
+
 \item{locus_shifts}{Offsets, in whole loci, the scan searches for. A
 locus's two allele columns move together, so shifts are never half a
 locus.}
@@ -76,7 +81,8 @@ retained either way; see \code{\link[=conform_report]{conform_report()}}.}
 }
 \value{
 A \code{geno_conformed} object: a \link[tibble:tibble]{tibble::tibble} with the DWR
-reference's exact columns, in order, carrying the QC report as a
+reference's exact columns, in order, followed by any CFS-only markers
+kept per \code{keep_unmatched_markers}, carrying the QC report as a
 \code{"conform_report"} attribute.
 }
 \description{

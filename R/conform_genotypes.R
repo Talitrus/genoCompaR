@@ -76,6 +76,9 @@
 #' @param resolve_duplicate_ids Collapse repeated sample IDs (CFS re-runs) to
 #'   one row, keeping whichever row carries the most called genotypes. IDs
 #'   whose every row is empty are dropped. `TRUE` by default.
+#' @param keep_unmatched_markers Append CFS markers absent from the DWR panel
+#'   as extra output columns instead of dropping them. `TRUE` by default; they
+#'   still receive the same VCF-validated QC as matched markers.
 #' @param locus_shifts Offsets, in whole loci, the scan searches for. A
 #'   locus's two allele columns move together, so shifts are never half a
 #'   locus.
@@ -91,7 +94,8 @@
 #'   retained either way; see [conform_report()].
 #'
 #' @return A `geno_conformed` object: a [tibble::tibble] with the DWR
-#'   reference's exact columns, in order, carrying the QC report as a
+#'   reference's exact columns, in order, followed by any CFS-only markers
+#'   kept per `keep_unmatched_markers`, carrying the QC report as a
 #'   `"conform_report"` attribute.
 #'
 #' @details
@@ -145,6 +149,7 @@ conform_genotypes <- function(cfs_file,
                                repair_offsets = FALSE,
                                null_invalid_alleles = FALSE,
                                resolve_duplicate_ids = TRUE,
+                               keep_unmatched_markers = TRUE,
                                locus_shifts = c(-1L, 1L, -2L, 2L),
                                min_offset_run = 3L,
                                low_call_rate = 0.5,
@@ -285,14 +290,20 @@ conform_genotypes <- function(cfs_file,
 
   matches <- intersect(colnames(cfs_renamed), marker_cols_dwr)
   unmatched <- setdiff(colnames(cfs_renamed), marker_cols_dwr)
+  extra_cols <- if (keep_unmatched_markers) unique(unmatched) else character(0)
 
   emit("[INFO] %d of %d CFS markers mapped onto DWR names.",
        length(matches), ncol(cfs_renamed))
   if (length(unmatched) > 0) {
     # Do not let these pass quietly. A rename bug looks exactly like a marker
     # that legitimately is not in the DWR panel.
-    emit("[WARNING] %d CFS markers did NOT map and will be dropped:",
-         length(unmatched))
+    if (keep_unmatched_markers) {
+      emit("[INFO] %d CFS markers did NOT map and will be kept as extra columns:",
+           length(unmatched))
+    } else {
+      emit("[WARNING] %d CFS markers did NOT map and will be dropped:",
+           length(unmatched))
+    }
     emit_obj(utils::head(unmatched, 20))
     if (length(unmatched) > 20) {
       emit("  ... and %d more.", length(unmatched) - 20)
@@ -473,9 +484,15 @@ conform_genotypes <- function(cfs_file,
          nulled_invalid)
   }
 
+  # Columns going into the output: DWR-matched markers plus any CFS-only
+  # markers being kept. Both get the same width QC; extra columns have no
+  # dwr_ref column to fall back on, so their width is checked only where the
+  # VCF describes them.
+  qc_cols <- c(matches, extra_cols)
+
   # Expected width: VCF site count where known, else the reference CSV.
   true_length <- list()
-  for (col in matches) {
+  for (col in qc_cols) {
     L <- sub("\\.[12]$", "", col)
     if (!is.null(vcf_alleles[[L]])) {
       true_length[[col]] <- length(vcf_alleles[[L]])
@@ -486,10 +503,10 @@ conform_genotypes <- function(cfs_file,
     }
   }
 
-  nulled_per_col <- stats::setNames(integer(length(matches)), matches)
-  called_per_col <- stats::setNames(integer(length(matches)), matches)
+  nulled_per_col <- stats::setNames(integer(length(qc_cols)), qc_cols)
+  called_per_col <- stats::setNames(integer(length(qc_cols)), qc_cols)
 
-  for (col in matches) {
+  for (col in qc_cols) {
     vals <- cfs_renamed[[col]]
     called <- .is_called(vals)
     called_per_col[col] <- sum(called)
@@ -510,13 +527,19 @@ conform_genotypes <- function(cfs_file,
 
   # --- Step 7: conform to the DWR template ----------------------------------
   emit("--- Step 7: Conforming to DWR template ---")
+  out_cols <- c(dwr_cols, extra_cols)
   conformed_df <- as.data.frame(
-    matrix(NA_character_, nrow = n_samples, ncol = length(dwr_cols)),
+    matrix(NA_character_, nrow = n_samples, ncol = length(out_cols)),
     stringsAsFactors = FALSE
   )
-  colnames(conformed_df) <- dwr_cols
+  colnames(conformed_df) <- out_cols
   conformed_df$SAMPLE_ID <- cfs_raw[[id_col]]
   conformed_df[, matches] <- cfs_renamed[, matches, drop = FALSE]
+  if (length(extra_cols) > 0) {
+    conformed_df[, extra_cols] <- cfs_renamed[, extra_cols, drop = FALSE]
+    emit("[INFO] %d CFS-only markers appended beyond the DWR template.",
+         length(extra_cols))
+  }
 
   blank_ids <- !.is_called(conformed_df$SAMPLE_ID)
   if (any(blank_ids)) {
@@ -532,7 +555,7 @@ conform_genotypes <- function(cfs_file,
   if (resolve_duplicate_ids && any(duplicated(conformed_df$SAMPLE_ID))) {
     emit("--- Step 7b: Resolving duplicate SAMPLE_IDs ---")
 
-    called_counts <- rowSums(!is.na(conformed_df[, marker_cols_dwr, drop = FALSE]))
+    called_counts <- rowSums(!is.na(conformed_df[, c(marker_cols_dwr, extra_cols), drop = FALSE]))
     dup_ids <- unique(conformed_df$SAMPLE_ID[duplicated(conformed_df$SAMPLE_ID)])
     emit("[INFO] %d SAMPLE_IDs appear more than once (%d rows involved).",
          length(dup_ids), sum(conformed_df$SAMPLE_ID %in% dup_ids))
@@ -563,8 +586,8 @@ conform_genotypes <- function(cfs_file,
         conflicts <- 0L
         shared <- 0L
         for (o in nonempty_others) {
-          a <- unlist(conformed_df[winner, marker_cols_dwr])
-          b <- unlist(conformed_df[o, marker_cols_dwr])
+          a <- unlist(conformed_df[winner, c(marker_cols_dwr, extra_cols)])
+          b <- unlist(conformed_df[o, c(marker_cols_dwr, extra_cols)])
           both <- !is.na(a) & !is.na(b)
           shared <- shared + sum(both)
           conflicts <- conflicts + sum(both & a != b)
@@ -602,8 +625,14 @@ conform_genotypes <- function(cfs_file,
   emit("              QC REPORT                   ")
   emit(rule)
 
-  if (identical(colnames(conformed_df), dwr_cols)) {
-    emit("[OK] 100% column alignment: output matches DWR reference structure exactly.")
+  if (identical(colnames(conformed_df), out_cols)) {
+    if (length(extra_cols) == 0) {
+      emit("[OK] 100% column alignment: output matches DWR reference structure exactly.")
+    } else {
+      emit(paste("[OK] Output matches DWR reference structure exactly, plus %d",
+                  "CFS-only marker column(s) appended (keep_unmatched_markers = TRUE)."),
+           length(extra_cols))
+    }
   } else {
     emit("[ERROR] Column mismatch against DWR reference!")
   }
@@ -674,12 +703,13 @@ conform_genotypes <- function(cfs_file,
          nrow(ht), max_het_excess, paste(ht$locus, collapse = ", "))
   }
 
-  # Verify the CKMRsim invariant actually holds on the way out.
+  # Verify the CKMRsim invariant actually holds on the way out, including any
+  # CFS-only markers kept beyond the DWR template.
   bad_len_loci <- character(0)
-  for (loc in unique(sub("\\.[12]$", "", marker_cols_dwr))) {
+  for (loc in unique(sub("\\.[12]$", "", c(marker_cols_dwr, extra_cols)))) {
     c1 <- paste0(loc, ".1")
     c2 <- paste0(loc, ".2")
-    if (!(c1 %in% dwr_cols && c2 %in% dwr_cols)) next
+    if (!(c1 %in% out_cols && c2 %in% out_cols)) next
     a <- c(conformed_df[[c1]], conformed_df[[c2]])
     a <- a[.is_called(a)]
     if (length(unique(nchar(a))) > 1) bad_len_loci <- c(bad_len_loci, loc)
@@ -694,8 +724,8 @@ conform_genotypes <- function(cfs_file,
   }
 
   # What the run could NOT check. Unverified data must never read as verified.
-  validated <- intersect(sub("\\.[12]$", "", matches), names(vcf_alleles))
-  unverified <- sort(unique(setdiff(sub("\\.[12]$", "", matches), names(vcf_alleles))))
+  validated <- intersect(sub("\\.[12]$", "", qc_cols), names(vcf_alleles))
+  unverified <- sort(unique(setdiff(sub("\\.[12]$", "", qc_cols), names(vcf_alleles))))
   emit("")
   emit("--- COVERAGE ---")
   emit("Loci validated against the VCF: %d", length(validated))
@@ -706,6 +736,10 @@ conform_genotypes <- function(cfs_file,
   }
   if (length(missing_in_cfs) > 0) {
     emit("DWR columns with no CFS source (empty in output): %d", length(missing_in_cfs))
+  }
+  if (length(extra_cols) > 0) {
+    emit("CFS markers kept beyond the DWR panel (keep_unmatched_markers = TRUE): %d",
+         length(unique(sub("\\.[12]$", "", extra_cols))))
   }
 
   emit("")
@@ -730,7 +764,8 @@ conform_genotypes <- function(cfs_file,
       coverage = list(
         validated = unique(validated),
         unverified = unverified,
-        missing_in_cfs = missing_in_cfs
+        missing_in_cfs = missing_in_cfs,
+        extra_cols = extra_cols
       )
     ),
     class = "conform_report"
@@ -751,8 +786,9 @@ conform_genotypes <- function(cfs_file,
 #'   order), `anomalies` (conditions needing a human decision), `offsets` (the
 #'   per-locus shift summary, or `NULL`), `het_excess` (the [paralog_scan()]
 #'   result), `call_rates` (per sample, named by ID), and `coverage` (which
-#'   loci could and could not be checked against a VCF). Printing it re-renders
-#'   the report.
+#'   loci could and could not be checked against a VCF, plus `extra_cols`: any
+#'   CFS-only marker columns kept beyond the DWR panel). Printing it
+#'   re-renders the report.
 #' @seealso [conform_genotypes()]
 #' @examples
 #' syn <- function(f) {

@@ -14,8 +14,9 @@ A \code{conform_report}: a list of \code{text} (every line of the report, in
 order), \code{anomalies} (conditions needing a human decision), \code{offsets} (the
 per-locus shift summary, or \code{NULL}), \code{het_excess} (the \code{\link[=paralog_scan]{paralog_scan()}}
 result), \code{call_rates} (per sample, named by ID), and \code{coverage} (which
-loci could and could not be checked against a VCF). Printing it re-renders
-the report.
+loci could and could not be checked against a VCF, plus \code{extra_cols}: any
+CFS-only marker columns kept beyond the DWR panel). Printing it
+re-renders the report.
 }
 \description{
 The QC report from a conversion run
