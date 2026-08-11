@@ -157,24 +157,46 @@ get_loci <- function(x) {
 }
 
 # All-pairs match_count / compared_count matrices (n x n, unnamed) for a set
-# of loci. O(n^2 x L) via vectorized matrix comparisons, one locus at a time.
+# of loci. Recodes each locus's canonical genotype key into integer levels
+# scoped into one global column space, builds a single sparse n x (total
+# levels) one-hot indicator matrix H, and gets match_count from one
+# Matrix::tcrossprod(H) sparse matrix multiply instead of an O(n^2) R-level
+# comparison per locus. compared_count uses a plain dense tcrossprod() of
+# the n x L presence matrix -- presence is usually ~95% dense, so routing
+# it through a sparse conversion is slower than base R's BLAS-backed
+# tcrossprod(), not faster.
 .pairwise_counts <- function(x, loci) {
   n <- nrow(x)
-  match_count <- matrix(0L, n, n)
-  compared_count <- matrix(0L, n, n)
+  L <- length(loci)
 
-  for (locus in loci) {
+  i_list <- vector("list", L)
+  j_list <- vector("list", L)
+  presence <- matrix(0, n, L)
+
+  col_offset <- 0L
+  for (li in seq_len(L)) {
+    locus <- loci[li]
     cols <- paste0(locus, c(".1", ".2"))
     key <- .canon_genotype_vec(x[[cols[1]]], x[[cols[2]]])
     present <- !is.na(key)
+    presence[, li] <- present
 
-    both_present <- outer(present, present, "&")
-    compared_count <- compared_count + both_present
+    f <- factor(key[present])
+    n_levels <- nlevels(f)
 
-    key_i <- matrix(key, n, n)
-    key_j <- matrix(key, n, n, byrow = TRUE)
-    match_count <- match_count + (both_present & (key_i == key_j))
+    i_list[[li]] <- which(present)
+    j_list[[li]] <- col_offset + as.integer(f)
+    col_offset <- col_offset + n_levels
   }
+
+  ii <- unlist(i_list, use.names = FALSE)
+  jj <- unlist(j_list, use.names = FALSE)
+  H <- Matrix::sparseMatrix(i = ii, j = jj, x = 1, dims = c(n, col_offset))
+  match_count <- as.matrix(Matrix::tcrossprod(H))
+  storage.mode(match_count) <- "integer"
+
+  compared_count <- tcrossprod(presence)
+  storage.mode(compared_count) <- "integer"
 
   list(match_count = match_count, compared_count = compared_count)
 }

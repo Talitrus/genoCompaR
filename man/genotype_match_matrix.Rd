@@ -34,9 +34,12 @@ overall relatedness/duplication structure rather than only the pairs
 that clear a fixed threshold (see \code{\link[=find_duplicate_genotypes]{find_duplicate_genotypes()}} for that).
 }
 \details{
-Like \code{\link[=find_duplicate_genotypes]{find_duplicate_genotypes()}}, this runs in O(n^2 x L) time/memory;
-for very large datasets consider filtering \code{x} (e.g. to one group/run,
-or a subset of loci) first.
+Like \code{\link[=find_duplicate_genotypes]{find_duplicate_genotypes()}}, this runs in O(n^2 x L) time/memory,
+via a sparse matrix multiply rather than per-locus O(n^2) comparisons;
+this keeps it fast in practice (thousands of samples in seconds, not
+minutes). Filtering \code{x} first (e.g. to one group/run, or a subset of
+loci) remains an option but isn't required for performance at the sizes
+this package targets.
 
 Real panels routinely contain sample pairs that share too few typed loci
 to score, so \strong{the matrix normally contains \code{NA} cells} (in addition to

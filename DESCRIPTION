@@ -15,7 +15,8 @@ Depends: R (>= 4.1)
 Imports:
     tibble,
     utils,
-    stats
+    stats,
+    Matrix
 Suggests:
     testthat (>= 3.0.0),
     withr
