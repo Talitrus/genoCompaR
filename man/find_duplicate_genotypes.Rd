@@ -39,10 +39,14 @@ mix-ups, re-sampled individuals, or accidental re-runs before analysis.
 }
 \details{
 This runs in O(n^2 x L) time/memory in the number of samples (n) and
-loci (L), using vectorized matrix comparisons rather than looping over
-individual pairs. For very large datasets (many thousands of samples),
-consider filtering \code{x} down (e.g. to one group/run at a time, or a subset
-of high-confidence loci via \code{loci}) before calling this function.
+loci (L). The all-pairs scan uses a sparse matrix multiply rather than
+looping over individual pairs or building per-locus O(n^2) comparison
+matrices, so it stays practical well past what the O(n^2 x L) complexity
+alone suggests -- roughly 8,000 samples x 200 loci in well under a
+minute on typical hardware. For exceptionally large datasets, filtering
+\code{x} down (e.g. to one group/run at a time, or a subset of high-confidence
+loci via \code{loci}) remains available but is no longer necessary for
+correctness or reasonable runtime at the sizes this package sees.
 }
 \examples{
 path <- system.file(
