@@ -88,6 +88,11 @@
 #'   `params.total_depth`.
 #' @param allele_balance Minimum allele balance for a call to be kept.
 #'   Defaults to `0.35`, matching `params.allele_balance`.
+#' @param preserve_group Keep each sample's own group instead of overwriting
+#'   it with `"ND"`. `FALSE` by default, matching the Nextflow pipeline
+#'   exactly (see Details). When `TRUE`, a re-run sample takes the group that
+#'   won duplicate resolution (Step 6), and a sample re-added in Step 8 (no
+#'   calls survived filtering) keeps the group its first raw call carried.
 #' @param verbose Print the step-by-step report as the run proceeds. The
 #'   report is retained either way; see [gen_haps_report()].
 #'
@@ -112,9 +117,11 @@
 #'   offending allele.** If one of a heterozygote's two calls is `N` or `X`,
 #'   the surviving real call is also dropped, and the locus is missing (`NA`)
 #'   for that sample rather than reduced to a homozygous-looking single call.
-#' - **`group` is set to `"ND"` on every output row**, regardless of the
-#'   sample's original group. Verified against the pipeline's shipped output
-#'   (every row is `"ND"`) - not a placeholder this function introduces.
+#' - **`group` is set to `"ND"` on every output row by default**, regardless
+#'   of the sample's original group. Verified against the pipeline's shipped
+#'   output (every row is `"ND"`) - not a placeholder this function
+#'   introduces. Set `preserve_group = TRUE` to keep each sample's own group
+#'   instead.
 #'
 #' Duplicate resolution is always the pipeline's "keep the run with the most
 #' loci called, drop the rest" behavior; it is not exposed as an argument
@@ -141,6 +148,7 @@ gen_haps <- function(raw_haps,
                       haplotype_depth = 4,
                       total_depth = 8,
                       allele_balance = 0.35,
+                      preserve_group = FALSE,
                       verbose = TRUE) {
 
   if (allele_balance < 0 || allele_balance > 1) {
@@ -371,9 +379,18 @@ gen_haps <- function(raw_haps,
 
   # --- Step 9: finalize -------------------------------------------------------
   emit("--- Step 9: Finalizing ---")
-  # Matches the pipeline exactly: group is "ND" on every row, not just the
-  # re-added ones. See @details above.
-  wide_df$group <- "ND"
+  if (preserve_group) {
+    # Each surviving indiv.ID has exactly one group left in hf after Step 6's
+    # duplicate resolution, so any of its rows is representative.
+    survived_group <- hf$group[match(ids_sorted, hf$indiv.ID)]
+    wide_df$group <- c(survived_group, missing_samples$group)
+    emit("[INFO] preserve_group = TRUE: output carries each sample's own group.")
+  } else {
+    # Matches the pipeline exactly: group is "ND" on every row, not just the
+    # re-added ones. See @details above.
+    wide_df$group <- "ND"
+    emit("[INFO] preserve_group = FALSE (default): group is 'ND' on every row, matching the pipeline.")
+  }
   wide_df <- wide_df[, c("group", "indiv.ID", locus_cols), drop = FALSE]
   rownames(wide_df) <- NULL
 
@@ -401,7 +418,7 @@ gen_haps <- function(raw_haps,
       text = lines,
       anomalies = anomalies,
       params = list(haplotype_depth = haplotype_depth, total_depth = total_depth,
-                    allele_balance = allele_balance),
+                    allele_balance = allele_balance, preserve_group = preserve_group),
       nxa = tibble::as_tibble(nxa),
       nxa_count = tibble::as_tibble(nxa_count),
       xtraalleles = tibble::as_tibble(xtralleles),

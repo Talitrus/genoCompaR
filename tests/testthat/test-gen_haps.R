@@ -43,6 +43,26 @@ test_that("group is 'ND' on every row, not just the re-added ones", {
   expect_true(all(out$group == "ND"))
 })
 
+test_that("preserve_group = TRUE keeps each sample's own group instead of 'ND'", {
+  out <- syn_gen_haps(preserve_group = TRUE)
+
+  # DUP01 takes whichever group won duplicate resolution (Step 6), not "gA".
+  expect_equal(out$group[out$indiv.ID == "DUP01"], "runB")
+
+  # A normal survivor keeps its own (only) group.
+  expect_equal(out$group[out$indiv.ID == "FISH01"], "gA")
+
+  # A sample re-added in Step 8 (no calls survived) still keeps the group its
+  # first raw call carried, even though it contributes no genotype data.
+  expect_equal(out$group[out$indiv.ID == "FISH08"], "gA")
+})
+
+test_that("preserve_group defaults to FALSE and is echoed in the report params", {
+  out <- syn_gen_haps()
+  expect_false(gen_haps_report(out)$params$preserve_group)
+  expect_true(gen_haps_report(syn_gen_haps(preserve_group = TRUE))$params$preserve_group)
+})
+
 test_that("a normal heterozygous call pairs both alleles", {
   out <- syn_gen_haps()
   fish01 <- out[out$indiv.ID == "FISH01", ]
@@ -162,7 +182,8 @@ test_that("gen_haps_report() round-trips and rejects non-geno_haps input", {
   expect_s3_class(report, "gen_haps_report")
   expect_type(report$text, "character")
   expect_true(length(report$text) > 0)
-  expect_equal(report$params, list(haplotype_depth = 4, total_depth = 8, allele_balance = 0.35))
+  expect_equal(report$params, list(haplotype_depth = 4, total_depth = 8,
+                                   allele_balance = 0.35, preserve_group = FALSE))
 
   expect_error(gen_haps_report(data.frame(x = 1)), "geno_haps")
 })

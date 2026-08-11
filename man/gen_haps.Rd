@@ -9,6 +9,7 @@ gen_haps(
   haplotype_depth = 4,
   total_depth = 8,
   allele_balance = 0.35,
+  preserve_group = FALSE,
   verbose = TRUE
 )
 }
@@ -29,6 +30,12 @@ at a locus for that locus to be kept. Defaults to \code{8}, matching
 
 \item{allele_balance}{Minimum allele balance for a call to be kept.
 Defaults to \code{0.35}, matching \code{params.allele_balance}.}
+
+\item{preserve_group}{Keep each sample's own group instead of overwriting
+it with \code{"ND"}. \code{FALSE} by default, matching the Nextflow pipeline
+exactly (see Details). When \code{TRUE}, a re-run sample takes the group that
+won duplicate resolution (Step 6), and a sample re-added in Step 8 (no
+calls survived filtering) keeps the group its first raw call carried.}
 
 \item{verbose}{Print the step-by-step report as the run proceeds. The
 report is retained either way; see \code{\link[=gen_haps_report]{gen_haps_report()}}.}
@@ -66,9 +73,11 @@ pipeline depends on them, not because they are obviously correct:
 offending allele.} If one of a heterozygote's two calls is \code{N} or \code{X},
 the surviving real call is also dropped, and the locus is missing (\code{NA})
 for that sample rather than reduced to a homozygous-looking single call.
-\item \strong{\code{group} is set to \code{"ND"} on every output row}, regardless of the
-sample's original group. Verified against the pipeline's shipped output
-(every row is \code{"ND"}) - not a placeholder this function introduces.
+\item \strong{\code{group} is set to \code{"ND"} on every output row by default}, regardless
+of the sample's original group. Verified against the pipeline's shipped
+output (every row is \code{"ND"}) - not a placeholder this function
+introduces. Set \code{preserve_group = TRUE} to keep each sample's own group
+instead.
 }
 
 Duplicate resolution is always the pipeline's "keep the run with the most

@@ -190,9 +190,11 @@ gen_haps_report(out)$xtraalleles       # loci dropped for >2 surviving alleles
 geno <- as_geno_data(out)   # defaults already match; no id_col/group_col needed
 ```
 
-`group` is always `"ND"` on output — that's the pipeline's own behavior, not a
-placeholder this function introduces — and an N/X call drops the whole
-`(sample, locus)` pair, not just the offending allele. See `?gen_haps` for both.
+`group` is `"ND"` on every output row by default 
+and an N/X call drops the whole `(sample, locus)` pair, not just
+the offending allele. See `?gen_haps` for both. Pass 
+`preserve_group = TRUE` to keep each sample's own
+group instead of overwriting it with `"ND"`.
 
 ## Function reference
 
