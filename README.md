@@ -61,6 +61,64 @@ compare_genotypes(geno, "CH-00001_S1", "CH-00002_S2", output = "tibble")
 compare_genotypes(geno, "CH-00001_S1", "CH-00002_S2", mendelian = FALSE)
 ```
 
+### `compare_replicates()` — compare replicate samples & ordination
+
+Compares multiple samples in a `geno_data` object that are putative replicates
+(technical replicates, re-runs, or suspected duplicate individuals). Computes
+exact-match pairwise concordance and mismatch distances, identifies "culprit"
+loci with discrepant calls (classified as `allelic_dropout`, `discordant`, or
+`multiallelic_discordant`), and generates a 2D PCoA ordination:
+
+```r
+# Compare replicates (defaults to all samples if already subsetted)
+reps <- compare_replicates(geno, samples = c("rep1", "rep2", "rep3"))
+reps
+#> <geno_replicates> 3 samples x 193 loci
+#> Pairwise concordance (pct_match): min 98.4%, median 99.2%, max 100.0%
+#> Discrepant loci: 3 (1.6% of panel loci)
+#>   - allelic_dropout: 2
+#>   - discordant:      1
+
+# Visualize sample ordination in 2D space (base graphics or optional ggplot2)
+plot(reps)
+plot(reps, engine = "ggplot2")
+
+# Direct access to components
+reps$summary          # Pairwise concordance & distance tibble
+reps$discrepancies    # Culprit loci with side-by-side sample calls
+reps$distance_matrix  # Symmetric dist object
+reps$ordination       # 2D coordinates & variance explained
+```
+
+### `summarize_replicates()` — panel-wide trends across replicate sets
+
+Aggregates multiple outputs from `compare_replicates()` to detect systematic
+trends across individuals or runs: identifying **chronic culprit loci** that
+fail repeatedly, and flagging **outlier replicate sets** whose concordance falls
+below expected replicate thresholds (default 95%, indicative of sample mix-ups):
+
+```r
+# Summarize across multiple replicate sets
+trends <- summarize_replicates(list(Fish1 = reps1, Fish2 = reps2, Fish3 = reps3))
+trends
+#> <replicate_trends> 3 replicate set(s) (9 total samples) across 193 loci
+#> Global concordance: mean 98.7%, median 99.2% (9 pairwise comparisons)
+#> Panel robustness:   178 of 193 loci (92.2%) perfectly concordant across all sets
+#>
+#> Chronic culprit loci (discrepant in >= 10% of sets): 3 flagged
+#>   locus                      n_sets_discrepant n_sets_evaluated discrep_rate n_dropout n_discordant
+#>   NC_037105.1:5432-5440                      2                3        66.7%         1            1
+
+# Inspect components
+trends$locus_trends       # Ranked table of all panel loci and error rates
+trends$set_summary        # Per-set metrics & outlier flags
+trends$all_discrepancies  # Combined per-locus calls across all sets
+
+# Visualize top chronic culprits or concordance distribution
+plot(trends, type = "culprits")
+plot(trends, type = "concordance")
+```
+
 ### `check_trio()` — parentage test against two known parents
 
 Tests whether an offspring's genotype is explainable by inheriting one
