@@ -61,6 +61,35 @@ compare_genotypes(geno, "CH-00001_S1", "CH-00002_S2", output = "tibble")
 compare_genotypes(geno, "CH-00001_S1", "CH-00002_S2", mendelian = FALSE)
 ```
 
+### `compare_replicates()` — compare replicate samples & ordination
+
+Compares multiple samples in a `geno_data` object that are putative replicates
+(technical replicates, re-runs, or suspected duplicate individuals). Computes
+exact-match pairwise concordance and mismatch distances, identifies "culprit"
+loci with discrepant calls (classified as `allelic_dropout`, `discordant`, or
+`multiallelic_discordant`), and generates a 2D PCoA ordination:
+
+```r
+# Compare replicates (defaults to all samples if already subsetted)
+reps <- compare_replicates(geno, samples = c("rep1", "rep2", "rep3"))
+reps
+#> <geno_replicates> 3 samples x 193 loci
+#> Pairwise concordance (pct_match): min 98.4%, median 99.2%, max 100.0%
+#> Discrepant loci: 3 (1.6% of panel loci)
+#>   - allelic_dropout: 2
+#>   - discordant:      1
+
+# Visualize sample ordination in 2D space (base graphics or optional ggplot2)
+plot(reps)
+plot(reps, engine = "ggplot2")
+
+# Direct access to components
+reps$summary          # Pairwise concordance & distance tibble
+reps$discrepancies    # Culprit loci with side-by-side sample calls
+reps$distance_matrix  # Symmetric dist object
+reps$ordination       # 2D coordinates & variance explained
+```
+
 ### `check_trio()` — parentage test against two known parents
 
 Tests whether an offspring's genotype is explainable by inheriting one

@@ -220,3 +220,56 @@ print.geno_match_matrix <- function(x, ...) {
   }
   invisible(x)
 }
+
+#' @export
+print.geno_replicates <- function(x, ...) {
+  n_samp <- length(x$samples)
+  n_loci <- x$n_loci_total
+  cat(sprintf("<geno_replicates> %d samples x %d loci\n", n_samp, n_loci))
+  rule <- strrep("-", 50)
+  cat(rule, "\n", sep = "")
+
+  pcts <- x$summary$pct_match[!is.na(x$summary$pct_match)]
+  dists <- x$summary$distance[!is.na(x$summary$distance)]
+
+  if (length(pcts) > 0) {
+    cat(sprintf(
+      "Pairwise concordance (pct_match): min %.1f%%, median %.1f%%, max %.1f%%\n",
+      min(pcts), stats::median(pcts), max(pcts)
+    ))
+    cat(sprintf(
+      "Pairwise distance (mismatch rate): min %.3f, median %.3f, max %.3f\n",
+      min(dists), stats::median(dists), max(dists)
+    ))
+  }
+
+  n_discrep <- nrow(x$discrepancies)
+  pct_discrep <- if (n_loci > 0) 100 * n_discrep / n_loci else 0
+  cat(sprintf("Discrepant loci: %d (%.1f%% of panel loci)\n", n_discrep, pct_discrep))
+
+  if (n_discrep > 0) {
+    type_counts <- table(x$discrepancies$discrepancy_type)
+    for (tn in names(type_counts)) {
+      cat(sprintf("  - %s: %d\n", tn, type_counts[[tn]]))
+    }
+
+    show_n <- min(n_discrep, 5)
+    cat(rule, "\n", sep = "")
+    if (n_discrep == 1) {
+      cat("Discrepant culprit locus:\n")
+    } else {
+      cat(sprintf("Top %d culprit loci with discrepancies:\n", show_n))
+    }
+    sub_disc <- x$discrepancies[seq_len(show_n), c("locus", "n_typed", "n_distinct_genotypes", "distinct_genotypes", "discrepancy_type")]
+    print(as.data.frame(sub_disc), row.names = FALSE)
+    if (n_discrep > show_n) {
+      cat(sprintf("... and %d more discrepant loci in $discrepancies\n", n_discrep - show_n))
+    }
+  }
+
+  cat(rule, "\n", sep = "")
+  cat("Components: $summary (pairwise table), $discrepancies (culprit loci),\n")
+  cat("            $distance_matrix (dist object), $ordination (PCoA coordinates).\n")
+  cat("Use plot(x) to visualize replicate ordination.\n")
+  invisible(x)
+}
