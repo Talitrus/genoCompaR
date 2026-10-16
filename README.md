@@ -90,6 +90,35 @@ reps$distance_matrix  # Symmetric dist object
 reps$ordination       # 2D coordinates & variance explained
 ```
 
+### `summarize_replicates()` — panel-wide trends across replicate sets
+
+Aggregates multiple outputs from `compare_replicates()` to detect systematic
+trends across individuals or runs: identifying **chronic culprit loci** that
+fail repeatedly, and flagging **outlier replicate sets** whose concordance falls
+below expected replicate thresholds (default 95%, indicative of sample mix-ups):
+
+```r
+# Summarize across multiple replicate sets
+trends <- summarize_replicates(list(Fish1 = reps1, Fish2 = reps2, Fish3 = reps3))
+trends
+#> <replicate_trends> 3 replicate set(s) (9 total samples) across 193 loci
+#> Global concordance: mean 98.7%, median 99.2% (9 pairwise comparisons)
+#> Panel robustness:   178 of 193 loci (92.2%) perfectly concordant across all sets
+#>
+#> Chronic culprit loci (discrepant in >= 10% of sets): 3 flagged
+#>   locus                      n_sets_discrepant n_sets_evaluated discrep_rate n_dropout n_discordant
+#>   NC_037105.1:5432-5440                      2                3        66.7%         1            1
+
+# Inspect components
+trends$locus_trends       # Ranked table of all panel loci and error rates
+trends$set_summary        # Per-set metrics & outlier flags
+trends$all_discrepancies  # Combined per-locus calls across all sets
+
+# Visualize top chronic culprits or concordance distribution
+plot(trends, type = "culprits")
+plot(trends, type = "concordance")
+```
+
 ### `check_trio()` — parentage test against two known parents
 
 Tests whether an offspring's genotype is explainable by inheriting one

@@ -290,6 +290,7 @@ compare_replicates <- function(x,
         var_explained = var_exp
       ),
       samples = sample_ids,
+      loci = loci,
       n_loci_total = length(loci)
     ),
     class = "geno_replicates"

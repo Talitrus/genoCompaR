@@ -273,3 +273,75 @@ print.geno_replicates <- function(x, ...) {
   cat("Use plot(x) to visualize replicate ordination.\n")
   invisible(x)
 }
+
+#' @export
+print.replicate_trends <- function(x, ...) {
+  g <- x$global
+  cat(sprintf(
+    "<replicate_trends> %d replicate set(s) (%d total samples) across %d loci\n",
+    g$n_sets, g$n_samples_total, g$n_loci_total
+  ))
+  rule <- strrep("-", 50)
+  cat(rule, "\n", sep = "")
+
+  cat(sprintf(
+    "Global concordance: mean %.1f%%, median %.1f%% (%d pairwise comparisons)\n",
+    g$mean_concordance, g$median_concordance, g$n_pairs_total
+  ))
+  cat(sprintf(
+    "Panel robustness:   %d of %d loci (%.1f%%) perfectly concordant across all sets\n",
+    g$n_loci_clean, g$n_loci_total, g$pct_loci_clean
+  ))
+
+  # Outlier sets
+  if (g$n_sets_flagged > 0) {
+    cat(rule, "\n", sep = "")
+    cat(sprintf(
+      "! %d replicate set(s) flagged below %g%% concordance (potential mix-up):\n",
+      g$n_sets_flagged, x$config$min_concordance
+    ))
+    bad_sets <- x$set_summary[x$set_summary$flagged_outlier, ]
+    for (i in seq_len(nrow(bad_sets))) {
+      cat(sprintf(
+        "    * %s: min match %.1f%%, mean match %.1f%% (%d discrepant loci)\n",
+        bad_sets$set_name[i], bad_sets$min_pct_match[i],
+        bad_sets$mean_pct_match[i], bad_sets$n_discrepant_loci[i]
+      ))
+    }
+  }
+
+  # Chronic culprit loci
+  flagged_loci <- x$locus_trends[x$locus_trends$flagged, ]
+  cat(rule, "\n", sep = "")
+  if (nrow(flagged_loci) > 0) {
+    cat(sprintf(
+      "Chronic culprit loci (discrepant in >= %.0f%% of sets): %d flagged\n",
+      100 * x$config$locus_error_threshold, nrow(flagged_loci)
+    ))
+    show_n <- min(nrow(flagged_loci), 5)
+    sub_l <- flagged_loci[seq_len(show_n), c("locus", "n_sets_discrepant", "n_sets_evaluated", "discrepancy_rate", "n_dropout", "n_discordant")]
+    names(sub_l)[names(sub_l) == "discrepancy_rate"] <- "discrep_rate"
+    sub_l$discrep_rate <- sprintf("%.1f%%", sub_l$discrep_rate)
+    print(as.data.frame(sub_l), row.names = FALSE)
+    if (nrow(flagged_loci) > show_n) {
+      cat(sprintf("... and %d more flagged loci in $locus_trends\n", nrow(flagged_loci) - show_n))
+    }
+  } else {
+    disc_any <- x$locus_trends[x$locus_trends$n_sets_discrepant > 0, ]
+    if (nrow(disc_any) > 0) {
+      cat(sprintf(
+        "No chronic culprit loci flagged (none exceeded %.0f%% of sets). %d loci had occasional discrepancies.\n",
+        100 * x$config$locus_error_threshold, nrow(disc_any)
+      ))
+    } else {
+      cat("No discrepant loci found across any replicate sets.\n")
+    }
+  }
+
+  cat(rule, "\n", sep = "")
+  cat("Components: $locus_trends (all loci), $set_summary (per-set stats),\n")
+  cat("            $global (panel metrics), $all_discrepancies (raw discrepancies).\n")
+  cat("Use plot(x, type = 'culprits') or plot(x, type = 'concordance') to visualize.\n")
+  invisible(x)
+}
+
