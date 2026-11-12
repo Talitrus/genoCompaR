@@ -16,7 +16,8 @@ Imports:
     tibble,
     utils,
     stats,
-    Matrix
+    Matrix,
+    readxl
 Suggests:
     testthat (>= 3.0.0),
     withr,
